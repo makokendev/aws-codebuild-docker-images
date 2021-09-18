@@ -98,49 +98,11 @@ RUN set -ex  \
 && wget -nv -O /usr/local/bin/dotnet-install.sh https://dot.net/v1/dotnet-install.sh \
 && chmod +x /usr/local/bin/dotnet-install.sh
 
-##nodejs
-ENV N_SRC_DIR="$SRC_DIR/n"
-RUN git clone https://github.com/tj/n $N_SRC_DIR \
-     && cd $N_SRC_DIR && make install
-
-
-##python
-RUN curl https://pyenv.run | bash
-ENV PATH="/root/.pyenv/shims:/root/.pyenv/bin:$PATH"
 
 #=======================End of layer: tools  =================
 
 FROM tools AS runtimes_1
 
-
-
-#****************      NODEJS     ****************************************************
-
-ENV NODE_10_VERSION="10.24.1"
-
-RUN  n $NODE_10_VERSION && npm install --save-dev -g -f grunt && npm install --save-dev -g -f grunt-cli && npm install --save-dev -g -f webpack \
-     && curl -sSL https://dl.yarnpkg.com/rpm/yarn.repo | tee /etc/yum.repos.d/yarn.repo \
-     && rpm --import https://dl.yarnpkg.com/rpm/pubkey.gpg \
-     && yum install -y yarn \
-     && yarn --version \
-     && cd / && rm -rf $N_SRC_DIR; rm -rf /tmp/*
-
-#****************      END NODEJS     ****************************************************
-
-#**************** PYTHON *****************************************************
-ENV PYTHON_37_VERSION="3.7.10"
-ENV PYTHON_PIP_VERSION=21.1.2
-ENV PYYAML_VERSION=5.4.1
-
-COPY tools/runtime_configs/python/$PYTHON_37_VERSION /root/.pyenv/plugins/python-build/share/python-build/$PYTHON_37_VERSION
-RUN   env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install $PYTHON_37_VERSION; rm -rf /tmp/*
-RUN   pyenv global  $PYTHON_37_VERSION
-RUN set -ex \
-    && pip3 install --no-cache-dir --upgrade --force-reinstall "pip==$PYTHON_PIP_VERSION" \
-    && pip3 install --no-cache-dir --upgrade "PyYAML==$PYYAML_VERSION" \
-    && pip3 install --no-cache-dir --upgrade setuptools wheel aws-sam-cli awscli boto3 pipenv virtualenv --use-feature=2020-resolver
-
-#**************** END PYTHON *****************************************************
 
 #=======================End of layer: runtimes_1  =================
 FROM runtimes_1 AS runtimes_2
@@ -171,34 +133,6 @@ RUN set -ex \
     && curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-Linux-x86_64 > /usr/local/bin/docker-compose \
     && chmod +x /usr/local/bin/dind /usr/local/bin/docker-compose \
     && docker-compose version
-
-# #Python 3.9
-ENV PYTHON_39_VERSION="3.9.5"
-
-COPY tools/runtime_configs/python/$PYTHON_39_VERSION /root/.pyenv/plugins/python-build/share/python-build/$PYTHON_39_VERSION
-RUN   env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install $PYTHON_39_VERSION; rm -rf /tmp/*
-RUN   pyenv global  $PYTHON_39_VERSION
-RUN set -ex \
-    && pip3 install --no-cache-dir --upgrade --force-reinstall "pip==$PYTHON_PIP_VERSION" \
-    && pip3 install --no-cache-dir --upgrade "PyYAML==$PYYAML_VERSION" \
-    && pip3 install --no-cache-dir --upgrade setuptools wheel aws-sam-cli awscli boto3 pipenv virtualenv --use-feature=2020-resolver
-
-#Python 3.8
-ENV PYTHON_38_VERSION="3.8.10"
-
-COPY tools/runtime_configs/python/$PYTHON_38_VERSION /root/.pyenv/plugins/python-build/share/python-build/$PYTHON_38_VERSION
-RUN   env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install $PYTHON_38_VERSION; rm -rf /tmp/*
-RUN   pyenv global  $PYTHON_38_VERSION
-RUN set -ex \
-    && pip3 install --no-cache-dir --upgrade --force-reinstall "pip==$PYTHON_PIP_VERSION" \
-    && pip3 install --no-cache-dir --upgrade "PyYAML==$PYYAML_VERSION" \
-    && pip3 install --no-cache-dir --upgrade setuptools wheel aws-sam-cli awscli boto3 pipenv virtualenv --use-feature=2020-resolver
-
-# Node 12
-ENV NODE_12_VERSION="12.22.2"
-
-RUN  n $NODE_12_VERSION && npm install --save-dev -g -f grunt && npm install --save-dev -g -f grunt-cli && npm install --save-dev -g -f webpack \
-     && rm -rf /tmp/*
 
 #=======================End of layer: runtimes_2  =================
 FROM runtimes_2 AS runtimes_3
@@ -235,9 +169,6 @@ RUN set -ex \
     && dotnet tool install --global GitVersion.Tool --version $GITVERSION_VERSION \
     && ln -s ~/.dotnet/tools/dotnet-gitversion /usr/local/bin/gitversion
 
-# # Install Composer globally
-# RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer
-#****************      END PHP     ****************************************************
 
 #===================END of runtimes_3 ==============
 FROM runtimes_3 AS al2_v3
